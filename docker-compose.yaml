@@ -1,0 +1,66 @@
+version: "3.9"
+services:
+  billingdb:
+    image: postgres:12-alpine
+    ports:
+      - 7001:5432
+    volumes:
+      - billing_db:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=harshal
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=billing_development
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U harshal -d billing_development"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+  billing:
+    image: billing_testing
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 7002:8080
+    environment:
+      - PORT=8080
+      - ENV=dev
+      - APP_VERSION=1.0.0
+      - SERVICE_NAME=billing
+      - LOG_LEVEL=debug # panic/fatal/error/warn/info/debug/trace
+      - DB_HOST=billingdb
+      - DB_PORT=5432
+      - DB_NAME=billing_development
+      - DB_USER=harshal
+      - DB_PASSWORD=pass
+      - DB_SSLMODE=disable
+      - DB_DRIVER=postgres
+      - DB_URL=postgres://harshal:pass@billingdb:5432/billing_development?sslmode=disable
+      - CORS_ORIGIN=*
+      - CORS_CREDENTIALS=true
+      - CORS_HEADERS=Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With
+      - CORS_METHODS=POST,HEAD,PATCH, OPTIONS, GET, PUT, DELETE
+      - API_KEY=sk_test_51KUOT4SCJzYWoWJZRPkRzEwrWr9Kdlv6ia6YFtGd83SREI26ixTqrY5Z42CiHbbDjrYJKds4DWaW65S2UdGPvRtB00BRt89FbS
+      - ENDPOINT_SECRET=whsec_7d60a485c3d13589a7b9c720460ab4379da2cca999b204bee2ec615f98a2267d
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    depends_on:
+      billingdb:
+        condition: service_healthy
+
+volumes:
+  billing_db:
